@@ -21,6 +21,10 @@ exports.getPullRequest = (owner, repo, number) => githubRequest(
   `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${number}`
 );
 
+exports.listPullRequests = async (owner, repo, page = 1) => githubRequest(
+  `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?state=all&per_page=100&page=${page}`
+);
+
 exports.verifyWebhookSignature = (payload, signature) => {
   if (!process.env.GITHUB_WEBHOOK_SECRET || !signature?.startsWith('sha256=')) {
     return false;
