@@ -15,6 +15,8 @@ const contributionSchema = new mongoose.Schema(
     additions: { type: Number, min: 0 },
     deletions: { type: Number, min: 0 },
     changedFiles: { type: Number, min: 0 },
+    githubCreatedAt: { type: Date },
+    githubMergedAt: { type: Date },
     scoreBreakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
     scoringVersion: { type: String, default: 'v1', trim: true },
     status: { type: String, enum: ['valid', 'flagged', 'rejected'], default: 'valid' },

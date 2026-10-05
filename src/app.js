@@ -34,7 +34,11 @@ app.use((req, res, next) => {
 app.use(cookieParser());
 app.use(passport.initialize());
 
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  skip: (req) => req.path === '/webhooks/github',
+}));
 app.use('/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', require('./routes/auth.routes'));
@@ -45,6 +49,7 @@ app.use('/admin', require('./routes/admin.routes'));
 app.use('/repositories', require('./routes/repository.routes'));
 app.use('/contributions', require('./routes/contribution.routes'));
 app.use('/webhooks', require('./routes/contribution.routes').webhookRouter);
+app.use('/', require('./routes/contribution.routes').publicRouter);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
