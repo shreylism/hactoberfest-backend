@@ -39,6 +39,7 @@ app.use(rateLimit({
   max: 100,
   skip: (req) => req.path === '/webhooks/github',
 }));
+app.use(rateLimit({windowMs: 15 * 60 * 1000,max: 100,skip: (req) => req.path.startsWith('/webhooks'),}));
 app.use('/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', require('./routes/auth.routes'));

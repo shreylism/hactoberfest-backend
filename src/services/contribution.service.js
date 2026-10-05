@@ -2,6 +2,7 @@ const Contribution = require('../models/contribution');
 const User = require('../models/user');
 const { getPullRequest } = require('./github.service');
 const { calculatePrScore } = require('./scoring.service');
+const User = require('../models/user');
 
 exports.holdContribution = async (id) => {
   const contribution = await Contribution.findOneAndUpdate(
@@ -41,13 +42,41 @@ exports.rejectContribution = async (id) => {
     { _id: id, status: 'flagged' },
     { status: 'rejected' },
     { new: true }
+  const old = await Contribution.findOneAndUpdate(
+    { _id: id, status: 'valid' },
+    { status: 'flagged' },
+    { returnDocument: 'before' }
+  );
+  if (old && old.pointsAwarded > 0) {
+    await User.updateOne(
+      { _id: old.userId },
+      { $inc: { totalScore: -old.pointsAwarded, prCount: -1 } }
+    );
+  }
+};
+
+exports.restoreContribution = async (id) => {
+  const old = await Contribution.findOneAndUpdate(
+    { _id: id, status: 'flagged' },
+    { status: 'valid' },
+    { returnDocument: 'before' }
+  );
+  if (old && old.pointsAwarded > 0) {
+    await User.updateOne(
+      { _id: old.userId },
+      { $inc: { totalScore: old.pointsAwarded, prCount: 1 } }
+    );
+  }
+};
+
+exports.rejectContribution = async (id) => {
+  await Contribution.findOneAndUpdate(
+    { _id: id, status: 'flagged' },
+    { status: 'rejected' }
   );
 };
 
-/**
- * Fetches authoritative GitHub data, calculates the score on the server, and
- * upserts one contribution per repository/PR pair.
- */
+
 exports.processPullRequest = async ({ repository, pullRequestNumber, userId, githubId }) => {
   if (!repository || !repository._id) {
     throw new Error('Repository is required');
@@ -74,7 +103,7 @@ exports.processPullRequest = async ({ repository, pullRequestNumber, userId, git
     throw new Error('Pull request is outside the event window');
   }
   const score = calculatePrScore(pullRequest, repository);
-  const filter = {
+    const filter = {
     repositoryId: repository._id,
     githubPrId: String(pullRequest.id),
   };
@@ -101,8 +130,50 @@ exports.processPullRequest = async ({ repository, pullRequestNumber, userId, git
     $setOnInsert: {
       status: 'valid',
       reportCount: 0,
+
+  const existing = await Contribution.findOne(filter);
+  if (existing && existing.status !== 'valid') return existing;
+
+  const oldPoints = existing ? existing.pointsAwarded : 0;
+  const newPoints = score.score;
+
+  const contribution = await Contribution.findOneAndUpdate(
+    filter,
+    {
+      $set: {
+        userId,
+        repositoryId: repository._id,
+        githubPrId: String(pullRequest.id),
+        githubPrNumber: pullRequest.number,
+        githubUsername: pullRequest.user.login,
+        githubUserId: pullRequest.user.id,
+        title: pullRequest.title,
+        url: pullRequest.html_url,
+        state: pullRequest.state,
+        merged: pullRequest.merged,
+        additions: pullRequest.additions,
+        deletions: pullRequest.deletions,
+        changedFiles: pullRequest.changed_files,
+        scoreBreakdown: score.scoreBreakdown,
+        scoringVersion: score.scoringVersion,
+        pointsAwarded: newPoints,
+      },
+      $setOnInsert: { status: 'valid', reportCount: 0 },
     },
-  };
+    { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true }
+  );
+
+  const pointsDelta = newPoints - oldPoints;
+  const prDelta = (newPoints > 0 ? 1 : 0) - (oldPoints > 0 ? 1 : 0);
+  if (pointsDelta !== 0 || prDelta !== 0) {
+    await User.updateOne(
+      { _id: userId },
+      {
+        $inc: { totalScore: pointsDelta, prCount: prDelta },
+        ...(pointsDelta > 0 ? { $set: { lastScoreAt: new Date() } } : {}),
+      }
+    );
+  }
 
   const existing = await Contribution.findOne(filter).select('status pointsAwarded');
   if (existing && existing.status !== 'valid') {
@@ -153,3 +224,5 @@ function isWithinEventWindow(pullRequest) {
 }
 
 exports.isWithinEventWindow = isWithinEventWindow;
+  return contribution;
+};
