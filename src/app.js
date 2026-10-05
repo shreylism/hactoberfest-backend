@@ -12,6 +12,7 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use('/webhooks/github', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
@@ -41,6 +42,9 @@ app.use('/leaderboard', require('./routes/leaderboard.routes'));
 app.use('/users', require('./routes/user.routes'));
 app.use('/reports', require('./routes/report.routes'));
 app.use('/admin', require('./routes/admin.routes'));
+app.use('/repositories', require('./routes/repository.routes'));
+app.use('/contributions', require('./routes/contribution.routes'));
+app.use('/webhooks', require('./routes/contribution.routes').webhookRouter);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
