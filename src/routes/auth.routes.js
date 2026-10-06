@@ -19,12 +19,4 @@ router.get(
 router.get('/me', auth, me);
 router.post('/logout', logout);
 
-if (process.env.NODE_ENV !== 'production') {
-  const jwt = require('jsonwebtoken');
-  router.get('/dev-login/:userId', (req, res) => {
-    const token = jwt.sign({ id: req.params.userId }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token });
-  });
-}
-
 module.exports = router;
