@@ -15,8 +15,4 @@ exports.calculatePrScore = (pullRequest, repository) => {
     scoreBreakdown: { base: pullRequest.merged ? base : 0, mergedBonus },
     scoringVersion,
   };
-  score: pullRequest.merged ? base + mergedBonus : 0,
-  scoreBreakdown: { base, mergedBonus },
-  scoringVersion,
-};
 };
