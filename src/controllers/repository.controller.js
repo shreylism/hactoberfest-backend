@@ -31,6 +31,43 @@ exports.create = async (req, res) => {
   }
 };
 
+exports.updateScoringConfig = async (req, res) => {
+  try {
+    const { repositoryId } = req.params;
+    const { base, mergedBonus } = req.body || {};
+
+    if (!Number.isFinite(Number(base)) || !Number.isFinite(Number(mergedBonus))) {
+      return res.status(400).json({
+        error: 'base and mergedBonus must be numbers',
+      });
+    }
+
+    const repository = await Repository.findByIdAndUpdate(
+      repositoryId,
+      {
+        scoringConfig: {
+          base: Number(base),
+          mergedBonus: Number(mergedBonus),
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!repository) {
+      return res.status(404).json({
+        error: 'Repository not found',
+      });
+    }
+
+    return res.json(repository);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      error: 'Something went wrong',
+    });
+  }
+};
+
 exports.deactivate = async (req, res) => {
   const repository = await Repository.findByIdAndUpdate(
     req.params.repositoryId,
