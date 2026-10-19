@@ -50,9 +50,8 @@ app.use(passport.initialize());
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  skip: (req) => req.path === '/webhooks/github',
+  skip: (req) => req.path.startsWith('/webhooks') || req.path === '/health',
 }));
-app.use(rateLimit({windowMs: 15 * 60 * 1000,max: 100,skip: (req) => req.path.startsWith('/webhooks'),}));
 app.use('/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', require('./routes/auth.routes'));
